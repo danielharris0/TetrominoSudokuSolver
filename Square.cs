@@ -104,12 +104,29 @@ public partial class Square {
         }
     }
 
+    public void AssumeDoor(int edgeNum) {
+        RAW_BuildEdgeBothSides(edgeNum, Edge.DOOR);
+        Square neighbour = GetNeighbour(edgeNum);
+
+        CombineRegionsWithDoor(edgeNum);
+
+        regionStatus = RegionStatus.PARTIAl_TETROMINO;
+        neighbour.regionStatus = RegionStatus.PARTIAl_TETROMINO;
+
+        Solver.RemoveNonconsecCandidates(this, neighbour);
+    }
+
     public void AssumeWall(int edgeNum) {
         RAW_BuildEdgeBothSides(edgeNum, Edge.WALL);
         Square neighbour = GetNeighbour(edgeNum);
+
+        Solver.RemoveConsecCandidates(this, neighbour);
+
+        if (grid.error != GridError.NO_ERROR) return;
+
         TestIfNewWallClosesRegionThisSide(edgeNum);
         neighbour.TestIfNewWallClosesRegionThisSide((edgeNum + 2) % 4);
-        Solver.RemoveConsecCandidates(this, neighbour);
+        
     }
 
     public void RAW_SetEdge(int edgeNum, Edge edge) { edges[edgeNum] = edge; }
@@ -147,13 +164,14 @@ public partial class Square {
     }
 
     void OnNumResolved(int num) {
-        if (grid.error != GridError.NO_ERROR) return;
         grid.numSolved++;
 
         //Remove Candidates from Rows and Cols
         for (int x = 0; x < 9; x++) { if (x != this.x) grid.squares[x, y].TryRemoveCandidate(num); }
         for (int y = 0; y < 9; y++) { if (y != this.y) grid.squares[x, y].TryRemoveCandidate(num); }
-        //TODO: i think somehow the 9-3 edge is not being detected, maybe cause they're both full nums - or possibly a zero-candidate situation emerges which breaks certain assumptions: I should check and see what that 'should never reach here' error was on about
+
+        if (grid.error != GridError.NO_ERROR) return;
+
         //Apply consecutivity edge rule
         for (int i=0; i<4; i++) {
 

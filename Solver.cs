@@ -1,4 +1,6 @@
-﻿#pragma warning disable CS8601
+﻿//#define STEP_BY_STEP
+
+#pragma warning disable CS8601
 #pragma warning disable CS8604
 
 //TODO: Deduction triggers should be added to a queue, and completed only once all the OBVIOUS changes have been made
@@ -41,47 +43,106 @@ public static class Solver {
             return 1;
         } else {
 
-            //Find first cell which has >1 candidate. Then guess all possible candidates. Then return.
             for (int y = 0; y < 9; y++) {
-                for (int x=0; x<9; x++) {
-                    Square s = grid.squares[x,y];
-                    if (s.GetNum() == null) {
-                        //This cell has >1 candidates. This is the one we will be making assumptions about.
-
+                for (int x = 0; x < 9; x++) {
+                    Square s = grid.squares[x, y];
+                    if (s.GetRegionStatus() == RegionStatus.PARTIAl_TETROMINO) {
                         int numSolutions = 0;
 
-                        for (int n = 0; n < 9; n++) {
-                            if (s.HasCandidate(n)) {
-                                Grid copy = new Grid(grid);
+                        bool cellHadUndeterminedEdges = false;
+                        for (int edgeType = 1; edgeType <= 2; edgeType++) {
+                            for (int i = 0; i < 4; i++) {
+                                if (s.GetEdge(i) == Edge.UNDETERMINED) {
+                                    cellHadUndeterminedEdges = true;
+                                    Grid copy = new Grid(grid);
 
-                               // grid.PrintCandidates(grid.squares[x,y]);
-                              //  Console.WriteLine("Assuming digit at " + x + ", " + y);
-                                //  Console.ReadLine();
-                                copy.squares[x, y].SetNum(n); //Make an assumption. The system automatically makes any follow-on deductions.
-                                if (copy.error == GridError.NO_ERROR) {
-                                    //Deductions led to a valid grid
-                                    int numSolutionsFromAssumption = Solve(copy);
-                                    numSolutions += numSolutionsFromAssumption;
-                                    //Future Optimisation: if we don't make all assumptions about the same cell, we may want to remove n as a candidate for this cell if numSolutionsFromAssumption==0 here.
-                                    //  But be sure to check if this removal itself leads to an invalid grid.
+#if PRINT
+                                    grid.PrintCandidates(grid.squares[x, y]);
+                                    Console.WriteLine("Assuming edgeType " + ((Edge)edgeType) + " at edgeNum " + i);
+#endif
+#if STEP_BY_STEP
+                                        Console.ReadLine();
+#endif
 
-                                } else {
-                                    //Deductions led to an inconsistency
-                                   // copy.PrintCandidates();
-                                   // Console.WriteLine("Assumption failed: " + copy.error);
-                                    //Console.ReadLine();
+                                    if (edgeType==1) copy.squares[x, y].AssumeDoor(i); //Make an assumption. The system automatically makes any follow-on deductions.
+                                    else  copy.squares[x, y].AssumeWall(i); //Make an assumption. The system automatically makes any follow-on deductions.
 
-                                    //Future Optimisation: if we don't make all assumptions about the same cell, we may want to remove n as a candidate for this cell if numSolutions==0 here.
-                                    //  But be sure to check if this removal itself leads to an invalid grid.
+
+                                    if (copy.error == GridError.NO_ERROR) {
+                                        //Deductions led to a valid grid
+                                        int numSolutionsFromAssumption = Solve(copy);
+                                        numSolutions += numSolutionsFromAssumption;
+                                        //Future Optimisation: if we don't make all assumptions about the same cell, we may want to remove n as a candidate for this cell if numSolutionsFromAssumption==0 here.
+                                        //  But be sure to check if this removal itself leads to an invalid grid.
+
+                                    } else {
+                                        //Deductions led to an inconsistency
+
+#if PRINT
+                                        copy.PrintCandidates();
+                                        Console.WriteLine("Assumption failed: " + copy.error);
+#endif
+#if STEP_BY_STEP
+                                        Console.ReadLine();
+#endif
+
+                                        //Future Optimisation: if we don't make all assumptions about the same cell, we may want to remove n as a candidate for this cell if numSolutions==0 here.
+                                        //  But be sure to check if this removal itself leads to an invalid grid.
+                                    }
                                 }
                             }
                         }
-                        return numSolutions;
+
+                        if (cellHadUndeterminedEdges) return numSolutions;
                     }
                 }
             }
-        }
+            {
+                Square s = grid.FindSquareWithLeastCandidates();
 
+                //Find first cell which has >1 candidate. Then guess all possible candidates. Then return.
+
+                //This cell has >1 candidates. This is the one we will be making assumptions about.
+
+                int numSolutions = 0;
+
+                for (int n = 0; n < 9; n++) {
+                    if (s.HasCandidate(n)) {
+                        Grid copy = new Grid(grid);
+
+#if PRINT
+                        grid.PrintCandidates(s);
+                        Console.WriteLine("Assuming digit.");
+#endif
+#if STEP_BY_STEP
+                        Console.ReadLine();
+#endif
+
+                        copy.squares[s.x, s.y].SetNum(n); //Make an assumption. The system automatically makes any follow-on deductions.
+                        if (copy.error == GridError.NO_ERROR) {
+                            //Deductions led to a valid grid
+                            int numSolutionsFromAssumption = Solve(copy);
+                            numSolutions += numSolutionsFromAssumption;
+                            //Future Optimisation: if we don't make all assumptions about the same cell, we may want to remove n as a candidate for this cell if numSolutionsFromAssumption==0 here.
+                            //  But be sure to check if this removal itself leads to an invalid grid.
+
+                        } else {
+                            //Deductions led to an inconsistency
+#if PRINT
+                            copy.PrintCandidates();
+                            Console.WriteLine("Assumption failed: " + copy.error);
+#endif
+#if STEP_BY_STEP
+                            Console.ReadLine();
+#endif
+                            //Future Optimisation: if we don't make all assumptions about the same cell, we may want to remove n as a candidate for this cell if numSolutions==0 here.
+                            //  But be sure to check if this removal itself leads to an invalid grid.
+                        }
+                    }
+                }
+                return numSolutions; //Return after first cell all candidates tried
+            }
+        }
         Debug.Assert(false);
         return 0; //Should never get here: all squares have <2 candidates implies all nums found.
     }
@@ -227,5 +288,9 @@ public static class Solver {
     public static void RemoveConsecCandidates(Square a, Square b) {
         if (a.GetNum() != null) b.RemoveConsecCandidates((int) a.GetNum());
         if (b.GetNum() != null) a.RemoveConsecCandidates((int) b.GetNum());
+    }
+    public static void RemoveNonconsecCandidates(Square a, Square b) {
+        if (a.GetNum() != null) b.RemoveNonconsecCandidates((int)a.GetNum());
+        if (b.GetNum() != null) a.RemoveNonconsecCandidates((int)b.GetNum());
     }
 }

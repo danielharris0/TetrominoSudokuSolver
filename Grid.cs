@@ -110,6 +110,21 @@ public class Grid {
         Console.ReadLine();
     }
 
+    public Square FindSquareWithLeastCandidates() {
+        int least = 10; Square leastS = squares[0, 0];
+        for (int x = 0; x < 9; x++) {
+            for (int y = 0; y < 9; y++) {
+                Square s = squares[x, y];
+                int n = s.GetNumCandidates();
+                if (n > 1 && n < least) {
+                    least = n;
+                    leastS = s;
+                }
+            }
+        }
+        return leastS;
+    }
+
     public Grid(string numbers, string tetrominos) {
         for (int x = 0; x < 9; x++) {
             for (int y = 0; y < 9; y++) squares[x, y] = new Square(this, x, y);
