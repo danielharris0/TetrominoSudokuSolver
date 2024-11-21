@@ -8,71 +8,82 @@ using System.Diagnostics;
 
 public static class Solver {
 
-    //Solves the grid, depth first. Prints all solutions.
-    public static bool Solve(Grid grid) { //return true if a solution is found
-        //Once all deductions exhausted:
+    static int mostTetrominosInSolution = 0;
+    static DateTime startTime = DateTime.Now;
 
+    //TODO: Assumptions to expand regions with doors
+
+
+    //Solves the grid, depth first. Prints all solutions.
+    public static int Solve(Grid grid) { //Returns the number of solutions.
         if (grid.numSolved==81) {
-            grid.Print(false);
-            grid.Print(true);
-            grid.PrintCandidates();
-            return true;
+            Console.WriteLine("Solved It!");
+
+            int numSingletons = grid.CountSingletons();
+            Debug.Assert((81 - numSingletons) % 4 == 0);
+            int numTetrominos = (81 - numSingletons) / 4;
+
+            Console.WriteLine("Num Tetrominos: " + numTetrominos);
+            Console.WriteLine("SingletonCoverage: " + (100 * numSingletons / 81) + "%");
+
+           // grid.Print(false);
+           // grid.Print(true);
+           if (numTetrominos >= mostTetrominosInSolution) {
+                mostTetrominosInSolution = numTetrominos;
+                grid.PrintCandidates();
+            }
+
+           if (mostTetrominosInSolution==13) {
+                Console.WriteLine(DateTime.Now - startTime);
+                Console.Read();
+            }
+            
+            return 1;
         } else {
+
+            //Find first cell which has >1 candidate. Then guess all possible candidates. Then return.
             for (int y = 0; y < 9; y++) {
                 for (int x=0; x<9; x++) {
                     Square s = grid.squares[x,y];
                     if (s.GetNum() == null) {
+                        //This cell has >1 candidates. This is the one we will be making assumptions about.
+
+                        int numSolutions = 0;
+
                         for (int n = 0; n < 9; n++) {
                             if (s.HasCandidate(n)) {
                                 Grid copy = new Grid(grid);
 
-                                grid.PrintCandidates(grid.squares[x,y]);
-                                Console.WriteLine("Assuming digit at " + x + ", " + y);
-                                Console.ReadLine();
+                               // grid.PrintCandidates(grid.squares[x,y]);
+                              //  Console.WriteLine("Assuming digit at " + x + ", " + y);
+                                //  Console.ReadLine();
+                                copy.squares[x, y].SetNum(n); //Make an assumption. The system automatically makes any follow-on deductions.
+                                if (copy.error == GridError.NO_ERROR) {
+                                    //Deductions led to a valid grid
+                                    int numSolutionsFromAssumption = Solve(copy);
+                                    numSolutions += numSolutionsFromAssumption;
+                                    //Future Optimisation: if we don't make all assumptions about the same cell, we may want to remove n as a candidate for this cell if numSolutionsFromAssumption==0 here.
+                                    //  But be sure to check if this removal itself leads to an invalid grid.
 
-                                copy.squares[x, y].SetNum(n);
-                                if (copy.valid) { //Deductions were valid
-                                    if (!Solve(copy)) grid.squares[x, y].TryRemoveCandidate(n); //But if it turns out this had no solutions, remove the candidate
-                                } else { //Deductions led to an inconsistency
+                                } else {
+                                    //Deductions led to an inconsistency
+                                   // copy.PrintCandidates();
+                                   // Console.WriteLine("Assumption failed: " + copy.error);
+                                    //Console.ReadLine();
 
-                                    copy.PrintCandidates();
-                                    Console.WriteLine("Assumption failed");
-                                    Console.ReadLine();
-
-                                    grid.squares[x, y].TryRemoveCandidate(n);
+                                    //Future Optimisation: if we don't make all assumptions about the same cell, we may want to remove n as a candidate for this cell if numSolutions==0 here.
+                                    //  But be sure to check if this removal itself leads to an invalid grid.
                                 }
                             }
                         }
+                        return numSolutions;
                     }
-
-                    //TODO: In solver - expand regions with doors
-
-
-                    /*
-                    for (int n=0; n<4; n++) {
-                        if (s.GetEdge(n) == Edge.UNDETERMINED) {
-                            Grid copy = new Grid(grid);
-                            copy.squares[x, y].SetEdge(n, Edge.DOOR);
-                            if (copy.valid) { //Check the deductions resulting from the change did not result in a contradiction
-
-                                if (!Solve(copy)) {
-                                    s.SetEdge(n, Edge.WALL);
-                                    break;
-                                }
-                            }
-
-                            copy = new Grid(grid);
-                            copy.squares[x, y].SetEdge(n, Edge.WALL);
-                            if (!Solve(copy)) s.SetEdge(n, Edge.DOOR);
-                            
-                        }
-                    }*/
                 }
             }
         }
 
-        return false;
-
+        Debug.Assert(false);
+        return 0; //Should never get here: all squares have <2 candidates implies all nums found.
     }
 
 
@@ -102,7 +113,7 @@ public static class Solver {
         }
     }
 
-    public static Tetromino ComputeTetrominoShape(Square[] squares) {
+    public static Tetromino ComputeTetrominoShapeFromWalls(Grid grid, Square[] squares) {
         int numCorners = 0;
         foreach (Square s in squares) {
             int numNeighbours = 0;
@@ -118,11 +129,12 @@ public static class Solver {
             case 2: return Tetromino.S;
         }
 
+        grid.PrintCandidates();
         Debug.Assert(false); //Should never reach this
         return Tetromino.O; 
     }
 
-    //Set region and tetromino shape of all members; add extra doors and walls; test adjacent tetrominos.
+    //Set region and tetromino shape of all members; add extra doors and walls; test adjacent tetrominos
     public static void CompleteTetrominoFromDoors(Grid grid, Square origin) { //Origin square is doored into a region of 4.
         //1. Collect members via DFS with list to check repeats
         Square[] squares = new Square[4];
@@ -142,39 +154,47 @@ public static class Solver {
 
         BoundRegion(origin);
 
-        Tetromino shape = ComputeTetrominoShape(squares);
-        foreach (Square s in squares) s.SetTetromino(shape);
-
-        foreach (Square s in squares) { //Add doors and walls and test adjacent tetrominos
+        foreach (Square s in squares) { //Add doors and walls
             for (int i = 0; i < 4; i++) {
                 Square? neighbour = s.GetNeighbour(i);
-                if (squares.Contains(neighbour)) {
-                    if (s.GetEdge(i) != Edge.DOOR) {
+                if (squares.Contains(neighbour)) { //Neighbour in tetromino
+                    if (s.GetEdge(i) != Edge.DOOR) { //Add additional doors (e.g. in the O tetromino case formed by doors)
                         s.RAW_SetEdge(i, Edge.DOOR);
-                        if (neighbour.GetNum()!=null) s.RemoveNonconsecCandidates((int) neighbour.GetNum());
+                        if (neighbour.GetNum()!=null) s.RemoveNonconsecCandidates((int) neighbour.GetNum()); //When a door is set (not by nums) on the side of a square with a whole num, then we enforce consecutivity
                     }
-                                        } 
-                else if (neighbour != null) {
-                    if (neighbour.GetTetromino() == shape) {
-                        grid.valid = false;
-                        return;       
-                    }
-                    if (s.GetEdge(i) != Edge.WALL) {
+                } 
+                else if (neighbour != null) { //Neighbour not in tetromino
+                    if (s.GetEdge(i) != Edge.WALL) { //Add walls
                         s.RAW_BuildEdgeBothSides(i, Edge.WALL);
-                        neighbour.TestIfNewWallClosesRegionThisSide((i + 2) % 4);
+                        neighbour.TestIfNewWallClosesRegionThisSide((i + 2) % 4); //Only need to test region closure on the other side (this tetromino is deffo closed)
                         Solver.RemoveConsecCandidates(s, neighbour);
                     }
                 } 
             }
         }
+
+        if (grid.error != GridError.NO_ERROR) return;
+
+        Tetromino shape = ComputeTetrominoShapeFromWalls(grid, squares);
+        foreach (Square s in squares) s.SetTetromino(shape);
+
+        //Test adjacent tetrominos
+        foreach (Square s in squares) {
+            for (int i = 0; i < 4; i++) {
+                Square? neighbour = s.GetNeighbour(i);
+                if (neighbour!=null && neighbour.GetTetromino() == shape && !squares.Contains(neighbour)) {
+                    grid.error = GridError.doorCompletedTetrominoTouchesAnother;
+                    return;
+                }
+            }
+        }
+ 
     }
 
     //Set region and tetromino shape of all members; add extra doors; test adjacent tetrominos
     public static void CompleteTetrominoFromWalls(Grid grid, Square[] squares) {
-        Tetromino shape = ComputeTetrominoShape(squares);
-        foreach (Square s in squares) s.SetTetromino(shape);
-        
-        foreach (Square s in squares) { //Add doors and test adjacent tetrominos
+        //Add doors
+        foreach (Square s in squares) { 
             for (int i=0; i<4; i++) {
                 Square? neighbour = s.GetNeighbour(i);
                 if (squares.Contains(neighbour)) {
@@ -182,8 +202,22 @@ public static class Solver {
                         s.RAW_SetEdge(i, Edge.DOOR);
                         if (neighbour.GetNum() != null) s.RemoveNonconsecCandidates((int)neighbour.GetNum());
                     }
-                } else if (neighbour != null && neighbour.GetTetromino() == shape) {
-                    grid.valid = false;
+                }
+            }
+        }
+
+        if (grid.error != GridError.NO_ERROR) return;
+
+
+        Tetromino shape = ComputeTetrominoShapeFromWalls(grid, squares);
+        foreach (Square s in squares) s.SetTetromino(shape);
+
+        //Test adjacent tetrominos
+        foreach (Square s in squares) { //Add doors
+            for (int i = 0; i < 4; i++) {
+                Square? neighbour = s.GetNeighbour(i);
+                if (!squares.Contains(neighbour) && neighbour != null && neighbour.GetTetromino() == shape) {
+                    grid.error = GridError.wallCompletedTetrominoTouchesAnother;
                     return;
                 }
             }

@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "h3iAZlhnOxqSeA9EgINgLLHPINW6pHnx+gq8mFIuCsDL8knPKDb2owvjlr2rfE2eaYLqT9gL6x4MjyAnZipyhA==",
+  "dgSpecHash": "azNHBy3FKdJOhnV5/d51kFGE3kZTH3vLG5GNb4BHOE7bSEpW49Y7A4RZFd5xjg1kKdP10KoN94PSqZkWacdXUw==",
   "success": true,
-  "projectFilePath": "C:\\Users\\danzo\\Code\\c#\\Sudoku\\Sudoku.csproj",
+  "projectFilePath": "C:\\Users\\danzo\\Code\\c#\\TetrominoSudokuSolver\\Sudoku.csproj",
   "expectedPackageFiles": [],
   "logs": []
 }

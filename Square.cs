@@ -20,7 +20,7 @@ public partial class Square {
                 }
             }
 
-            if (numCandidates == 0) grid.valid = false;
+            if (numCandidates == 0) grid.error = GridError.noCandidates;
         }
     }
     public void RemoveConsecCandidates(int num) {
@@ -62,26 +62,45 @@ public partial class Square {
     }
 
     public void TestIfNewWallClosesRegionThisSide(int edgeNum) {
+        if (grid.error != GridError.NO_ERROR) return;
+
         //Has this wall now totally enclosed a region?
         (Square[] members, int numMembers, bool overflowed) = Solver.GrabWalledRegion(this);
         if (!overflowed) {
             if (numMembers == 1) regionStatus = RegionStatus.SINGLETON;
-            else if (numMembers < 4) grid.valid = false;
-            else Solver.CompleteTetrominoFromWalls(grid, members);         
+            else if (numMembers < 4) {
+                grid.error = GridError.wallEnclosedRegionOfTwoOrThree;
+            } else Solver.CompleteTetrominoFromWalls(grid, members);         
         }
     }
 
     void CombineRegionsWithDoor(int edgeNum) {
+        if (grid.error != GridError.NO_ERROR) return;
+
         //Compute combined region size
         Square neighbour = GetNeighbour(edgeNum);
         int combinedSize = sizeOfDooredRegion + neighbour.sizeOfDooredRegion;
-        sizeOfDooredRegion = combinedSize;
-        neighbour.sizeOfDooredRegion = combinedSize;
 
-        if (combinedSize > 4) grid.valid = false;
-        else if (combinedSize==4) {
-            //Thus this must be a full tetromino
-            Solver.CompleteTetrominoFromDoors(grid, this);
+        if (combinedSize > 4) grid.error = GridError.combinedDoorsRegionTooLarge;
+        else {
+            //Propogate new region size
+            Square[] seen = new Square[4]; int numSeen = 0;
+            void propogate(Square s) {
+                seen[numSeen] = s; numSeen++;
+                s.sizeOfDooredRegion = combinedSize;
+                for (int i=0; i<4; i++) {
+                    if (s.GetEdge(i)==Edge.DOOR) {
+                        Square neighbour = s.GetNeighbour(i);
+                        if (!seen.Contains(neighbour)) propogate(neighbour);
+                    }
+                }
+            }
+            propogate(this);
+
+
+            if (combinedSize == 4) { //Thus this must be a full tetromino
+                Solver.CompleteTetrominoFromDoors(grid, this);
+            }
         }
     }
 
@@ -128,23 +147,32 @@ public partial class Square {
     }
 
     void OnNumResolved(int num) {
+        if (grid.error != GridError.NO_ERROR) return;
         grid.numSolved++;
 
         //Remove Candidates from Rows and Cols
         for (int x = 0; x < 9; x++) { if (x != this.x) grid.squares[x, y].TryRemoveCandidate(num); }
         for (int y = 0; y < 9; y++) { if (y != this.y) grid.squares[x, y].TryRemoveCandidate(num); }
-
+        //TODO: i think somehow the 9-3 edge is not being detected, maybe cause they're both full nums - or possibly a zero-candidate situation emerges which breaks certain assumptions: I should check and see what that 'should never reach here' error was on about
         //Apply consecutivity edge rule
         for (int i=0; i<4; i++) {
 
             Edge edgeDeduction = deduceEdge(i);
-
             Edge currentEdge = GetEdge(i);
-            if (currentEdge == Edge.UNDETERMINED) {
-                if (edgeDeduction != Edge.UNDETERMINED) OnNumsDecideNewEdge(i, edgeDeduction);
+
+            if (edgeDeduction != Edge.UNDETERMINED) {
+                if (currentEdge == Edge.UNDETERMINED) {
+                    //This number implies a previously unresolved edge
+                    OnNumsDecideNewEdge(i, edgeDeduction);
+                } else if (currentEdge != edgeDeduction) {
+                    //Test that the implied edge matches the existing edge
+                    grid.error = GridError.resolvedNumContradictedConsecutivityRule;
+                }
+            } else if (currentEdge != Edge.UNDETERMINED) {
+                //Now we know both the edge and the number - so we can enforce consecutivity on neighouring candidates
+                if (currentEdge == Edge.WALL) GetNeighbour(i).RemoveConsecCandidates(num);
+                if (currentEdge == Edge.DOOR) GetNeighbour(i).RemoveNonconsecCandidates(num);
             }
-            else if (currentEdge != edgeDeduction) grid.valid = false;
-            
         }
 
 

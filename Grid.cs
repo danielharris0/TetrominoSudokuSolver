@@ -1,9 +1,11 @@
 ﻿using System.Diagnostics;
 
+public enum GridError {NO_ERROR, resolvedNumContradictedConsecutivityRule, wallCompletedTetrominoTouchesAnother, doorCompletedTetrominoTouchesAnother, noCandidates, wallEnclosedRegionOfTwoOrThree, combinedDoorsRegionTooLarge };
+
 public class Grid {
     public Square[,] squares = new Square[9, 9];
     public int numSolved = 0;
-    public bool valid = true;
+    public GridError error = GridError.NO_ERROR;
 
     //Copy Constructor
     public Grid(Grid parent) {
@@ -11,6 +13,16 @@ public class Grid {
             for (int y = 0; y < 9; y++) squares[x, y] = new Square(this, parent.squares[x,y]);
         }
         numSolved = parent.numSolved;
+    }
+
+    public int CountSingletons() {
+        int count = 0;
+        for (int x = 0; x < 9; x++) {
+            for (int y = 0; y < 9; y++) {
+                if (squares[x, y].GetRegionStatus() == RegionStatus.SINGLETON) count++;
+            }
+        }
+        return count;
     }
 
     public void PrintCandidates(Square? highlightSquare = null) {
@@ -21,10 +33,14 @@ public class Grid {
                     Square s = squares[x, y];
 
                     if (subY == 0) {
+
+                        // Console.ForegroundColor = ConsoleColor.DarkYellow; Console.Write(s.sizeOfDooredRegion);
+                        Console.Write(" ");
+
                         switch (s.GetEdge(0)) {
-                            case Edge.WALL: Console.ForegroundColor = ConsoleColor.Red; Console.Write(" --- "); break;
-                            case Edge.DOOR: Console.ForegroundColor = ConsoleColor.Green; Console.Write("  !  "); break;
-                            case Edge.UNDETERMINED: Console.Write("     "); break;
+                            case Edge.WALL: Console.ForegroundColor = ConsoleColor.Red; Console.Write("--- "); break;
+                            case Edge.DOOR: Console.ForegroundColor = ConsoleColor.Green; Console.Write(" !  "); break;
+                            case Edge.UNDETERMINED: Console.Write("    "); break;
                         }
                     }
                     else {
@@ -55,17 +71,18 @@ public class Grid {
                             Console.Write(new string(' ', subY==1 ? 4-n : 8-Math.Clamp(n, 4, 8)));
                         }
 
-                        Debug.Assert(!valid || s.x == 8 || s.GetEdge(1) == s.GetNeighbour(1).GetEdge(3));
+                        Debug.Assert(error!=GridError.NO_ERROR || s.x == 8 || s.GetEdge(1) == s.GetNeighbour(1).GetEdge(3));
                         if (x==8) { Console.ForegroundColor = ConsoleColor.Red; Console.Write('|'); }
                     }
 
-                    Debug.Assert(!valid || s.y == 8 || s.GetEdge(2) == s.GetNeighbour(2).GetEdge(0));
+                    Debug.Assert(error != GridError.NO_ERROR || s.y == 8 || s.GetEdge(2) == s.GetNeighbour(2).GetEdge(0));
                 }
                 Console.Write("\n");
             }
         }
         Console.ForegroundColor = ConsoleColor.Red; Console.Write(" ---  ---  ---  ---  ---  ---  ---  ---  ---  ");
         Console.ForegroundColor = ConsoleColor.White;
+        Console.WriteLine();
         //Console.ReadLine();
     }
 

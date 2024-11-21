@@ -12,7 +12,7 @@ public partial class Square {
 	bool[] candidates;
 	int numCandidates;
 
-	int sizeOfDooredRegion; //num cells in a group connected by doors
+	public int sizeOfDooredRegion; //num cells in a group connected by doors
 	Edge[] edges;
 	RegionStatus regionStatus;
 	Tetromino? tetromino; //only relevent if regionStatus==TETROMINO
@@ -42,6 +42,8 @@ public partial class Square {
 		x = parent.x; y = parent.y;
 		numCandidates = parent.numCandidates;
 		sizeOfDooredRegion = parent.sizeOfDooredRegion;
+
+		tetromino = parent.tetromino;
 
 		candidates = new bool[9];
 		parent.candidates.CopyTo(candidates, 0);

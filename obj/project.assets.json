@@ -14,11 +14,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\danzo\\Code\\c#\\Sudoku\\Sudoku.csproj",
+      "projectUniqueName": "C:\\Users\\danzo\\Code\\c#\\TetrominoSudokuSolver\\Sudoku.csproj",
       "projectName": "Sudoku",
-      "projectPath": "C:\\Users\\danzo\\Code\\c#\\Sudoku\\Sudoku.csproj",
+      "projectPath": "C:\\Users\\danzo\\Code\\c#\\TetrominoSudokuSolver\\Sudoku.csproj",
       "packagesPath": "C:\\Users\\danzo\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\danzo\\Code\\c#\\Sudoku\\obj\\",
+      "outputPath": "C:\\Users\\danzo\\Code\\c#\\TetrominoSudokuSolver\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "C:\\Users\\danzo\\AppData\\Roaming\\Godot\\mono\\GodotNuGetFallbackFolder"
